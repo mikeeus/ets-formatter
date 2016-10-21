@@ -28,6 +28,6 @@ module EtsFormatter
     config.api_only = true
 
     # Use sql for schema
-    config.active_records.schema_format = :sql
+    config.active_record.schema_format = :sql
   end
 end
