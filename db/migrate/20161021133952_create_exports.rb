@@ -3,7 +3,7 @@ class CreateExports < ActiveRecord::Migration[5.0]
     create_table :exports do |t|
       t.belongs_to :hscode, foreign_key: true, index: true
       t.integer :year,        null: false, index: true
-      t.integer :month,       null: false, index: true      
+      t.integer :months, array: true, default: [], null: false, index: true      
       t.integer :code,        null: false, index: true
       t.string  :description, null: false
       t.string  :destination, null: false, index: true
