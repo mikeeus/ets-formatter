@@ -6,7 +6,6 @@ task :import_records, [:year, :type] => :environment do |t, args|
   type = args[:type]
   path = "db/records/#{year}/#{type}.csv"
 
-  STDOUT.print "Time.now = #{Time.now}"
 
   if type == "import" || type == "export"
 
@@ -17,9 +16,19 @@ task :import_records, [:year, :type] => :environment do |t, args|
       puts "Export records exist, please purge records then try again"
     else
 
-        CSV.foreach(path, headers: true, 
-          encoding: 'windows-1251:UTF-8') do |row|
+      puts "Starting upload"
 
+      CSV.read(path, headers: true, encoding: 'windows-1251:UTF-8').tap do |csv|
+
+        len = csv.size
+
+        print "Uploading #{type}s: \n"
+        
+        csv.each_with_index do |row, idx|
+          progress = idx.to_f/len.to_f
+          # Update the progress bar display for the user.
+          print "\r#{progress}"
+        
           # IMPORTS ------------------------------------------------------
           if type == "import"
             import_hash = row.to_hash
@@ -34,12 +43,12 @@ task :import_records, [:year, :type] => :environment do |t, args|
             )
             # Look for existin hscode
             hscode = Hscode.find_by(code: code)
-            # If an import for this record already exists, but doesn't include this month, sum the values
+            # If an import for this record already exists for this year, sum the values
             if !import.nil?
               import.update_attributes({
-                cif_etb: import_hash['cif_etb'],
-                cif_usd: import_hash['cif_usd'],
-                net_mass: import_hash['net_mass']
+                net_mass: (import.cif_etb + import_hash['net_mass'].to_d),
+                cif_etb: (import.net_mass + import_hash['cif_etb'].to_d),
+                cif_usd: (import.cif_usd + import_hash['cif_usd'].to_d)
               })
             # If no import exists, but an hscode exists:
             elsif import.nil? && !hscode.nil?
@@ -91,9 +100,9 @@ task :import_records, [:year, :type] => :environment do |t, args|
             # If an export for this record already exists, but doesn't include this month, sum the values
             if !export.nil? 
               export.update_attributes({
-                fob_etb: export_hash['fob_etb'],
-                fob_usd: export_hash['fob_usd'],
-                net_mass: export_hash['net_mass'],
+                net_mass: (export.net_mass + export_hash['net_mass'].to_d),
+                fob_usd: (export.fob_usd + export_hash['fob_usd'].to_d),
+                fob_etb: (export.fob_etb + export_hash['fob_etb'].to_d)
               })
 
             # If no export exists, but an hscode exists:
@@ -130,10 +139,12 @@ task :import_records, [:year, :type] => :environment do |t, args|
               export_build.save
             end
           end # elsif type == "export"
-        end # CSV.foreach
-      end # elsif im_count == 0 && ex_count ==0
-    else
-      puts "please input type 'import' or 'export'"
-    end # if type == 'import' || 'export|| else ...
+        end # csv.each_with_index
+
+      end # CSV.read
+    end # elsif im_count == 0 && ex_count ==0
+  else
+    puts "please input type 'import' or 'export'"
+  end # if type == 'import' || 'export|| else ...
 
 end # task
